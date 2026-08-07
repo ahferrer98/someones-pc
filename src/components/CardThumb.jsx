@@ -1,4 +1,25 @@
 import { useCardImage } from "../hooks/useCardImage";
+import { cachedImageUrl } from "../lib/cardArtCache";
+
+// The cache proxy only exists once deployed — there's no Vercel function
+// under `vite dev` — so a failed request there falls back to the original
+// URL, keeping local dev exactly as it worked before caching existed.
+function CachedImg({ original, card, alt, style }) {
+  return (
+    <img
+      src={cachedImageUrl(original, card)}
+      alt={alt}
+      style={style}
+      loading="lazy"
+      onError={(e) => {
+        if (e.currentTarget.src !== original) {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src = original;
+        }
+      }}
+    />
+  );
+}
 
 export function CardThumb({ card, w = 40, h = 56 }) {
   const apiImg = useCardImage(card, !!card.imageUrl);
@@ -12,7 +33,7 @@ export function CardThumb({ card, w = 40, h = 56 }) {
     objectFit: "cover",
   };
   if (card.imageUrl) {
-    return <img src={card.imageUrl} alt={card.name} style={box} loading="lazy" />;
+    return <CachedImg original={card.imageUrl} card={card} alt={card.name} style={box} />;
   }
   const img = apiImg;
   if (img === undefined) {
@@ -46,5 +67,6 @@ export function CardThumb({ card, w = 40, h = 56 }) {
       </div>
     );
   }
-  return <img src={w > 70 ? img.large : img.small} alt={card.name} style={box} loading="lazy" />;
+  const rawUrl = w > 70 ? img.large : img.small;
+  return <CachedImg original={rawUrl} card={card} alt={card.name} style={box} />;
 }

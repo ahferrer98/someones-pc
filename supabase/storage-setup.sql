@@ -1,0 +1,25 @@
+-- Someone's PC — card art cache bucket
+--
+-- Card art is public, non-sensitive data (the images themselves, not your
+-- collection), so this bucket is world-readable and world-writable-by-upload
+-- on purpose — the /api/card-image function uses the plain anon key to write
+-- to it, no service_role key needed anywhere. The policies below are scoped
+-- tightly to this one bucket; they grant nothing on collection, storages, or
+-- user_settings.
+
+insert into storage.buckets (id, name, public)
+values ('card-art', 'card-art', true)
+on conflict (id) do nothing;
+
+-- INSERT covers a brand-new cache entry; UPDATE covers the upsert path the
+-- proxy function uses if two requests for the same uncached card land at once.
+create policy "anyone can add card art" on storage.objects
+  for insert to anon, authenticated
+  with check (bucket_id = 'card-art');
+
+create policy "anyone can replace card art" on storage.objects
+  for update to anon, authenticated
+  using (bucket_id = 'card-art');
+
+-- No SELECT policy needed — reads go through the bucket's public URL, which
+-- bypasses object-level RLS entirely for a public bucket by design.

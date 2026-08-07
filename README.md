@@ -14,7 +14,9 @@ spec and data model this was rebuilt from.
 - Supabase (Postgres) for storage — no backend server needed
 - `lucide-react` for icons
 - Card art: pasted image URLs, with a live [pokemontcg.io](https://pokemontcg.io) lookup as
-  a fallback when a card has a set + number but no pasted URL
+  a fallback when a card has a set + number but no pasted URL. Actual image bytes are cached
+  permanently in Supabase Storage the first time each card is displayed (see below) — needs a
+  deployment to work, since the caching itself happens in a Vercel function.
 
 ## Setup
 
@@ -23,6 +25,8 @@ spec and data model this was rebuilt from.
 2. **Run the schema** — open the SQL editor in your Supabase project and run the contents of
    [`supabase/schema.sql`](./supabase/schema.sql). This creates the `collection`,
    `storages`, and `user_settings` tables, each scoped to an account by row-level security.
+   Then run [`supabase/storage-setup.sql`](./supabase/storage-setup.sql) too — it creates the
+   `card-art` bucket the image cache writes to (see "Card art caching" below).
    *Upgrading a project that predates accounts? Run
    [`supabase/migration-auth.sql`](./supabase/migration-auth.sql) instead — it keeps your data.*
 3. **Turn on email sign-in** — in Supabase, Authentication → Providers → Email. Leave
@@ -82,6 +86,30 @@ Configuration). Magic links sent from a URL that isn't listed there will fail to
   Trainer card's real subtype — Item / Supporter / Tool / Stadium — against pokemontcg.io.
   Anything the lookup can't resolve (no set/number, or not found) keeps the Item default and
   can be fixed by hand.
+
+### Card art caching
+
+Every card image — pasted URL or live pokemontcg.io lookup — renders through `/api/card-image`
+rather than being loaded directly. That function ([`api/card-image.js`](./api/card-image.js))
+checks Supabase Storage for a cached copy; if there isn't one, it downloads the image
+server-side, saves it to the `card-art` bucket, and redirects there. Every later request for
+that card — from any browser, any device — hits Storage's CDN directly instead of the
+original host.
+
+This exists because `images.pokemontcg.io` and TCGplayer's CDN both refuse cross-origin
+`fetch()` (confirmed by testing — they load fine in an `<img>` tag, but JavaScript can't read
+the bytes to cache them itself), so caching the actual image data has to happen server-side.
+The cache key is the card's identity (name/set/number) rather than the source URL, so a live
+lookup and a manually pasted URL for the same print share one cached file.
+
+No `service_role` key is involved — the function authenticates with the same anon key the
+rest of the app uses. `storage-setup.sql` grants that key insert/update access scoped to only
+the `card-art` bucket; it has no bearing on `collection`, `storages`, or `user_settings`.
+
+This only works once deployed — there's no Vercel function under `vite dev`, so
+`/api/card-image` doesn't exist locally. Every `<img>` falls back to the original URL on load
+failure, which is what local dev does automatically; card art still displays, just without the
+caching.
 
 ### Working around the pokemontcg.io API
 

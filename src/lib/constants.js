@@ -73,4 +73,21 @@ export const STORAGE_TYPES = [
 ];
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
-export const norm = (s) => (s || "").trim().toLowerCase();
+
+// Combining diacritical marks, U+0300 through U+036F — built from char codes
+// rather than a regex literal containing the raw characters or a \uXXXX
+// escape, both of which round-trip unreliably through some editing tools.
+const COMBINING_MARKS = new RegExp("[" + String.fromCharCode(0x0300) + "-" + String.fromCharCode(0x036f) + "]", "g");
+
+// Every match/search in the app compares through this — exact-print lookups,
+// the Locate search box, List Builder, decklist import, the image-cache key —
+// so folding accents here fixes "Poke Pad" matching "Poké Pad" everywhere at
+// once, without ever touching what's actually stored or displayed. NFD
+// decomposes an accented letter into the plain letter plus a separate
+// combining-mark codepoint, which the replace then strips.
+export const norm = (s) =>
+  (s || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(COMBINING_MARKS, "");

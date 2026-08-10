@@ -206,6 +206,24 @@ export function deleteStorageRow(id) {
   });
 }
 
+// Deletes every collection and storage row for the signed-in account in two
+// bulk requests, rather than one delete per row — the "danger zone" wipe in
+// Collection is the only caller. RLS already scopes deletes to this account,
+// but filtering on user_id explicitly keeps that true even if RLS is ever
+// misconfigured, matching how every insert here stamps user_id rather than
+// relying on the database to infer it.
+export function wipeAllData() {
+  return serialize("wipe-all", async () => {
+    const userId = requireUser();
+    const [collectionRes, storagesRes] = await Promise.all([
+      supabase.from("collection").delete().eq("user_id", userId),
+      supabase.from("storages").delete().eq("user_id", userId),
+    ]);
+    if (collectionRes.error) throw collectionRes.error;
+    if (storagesRes.error) throw storagesRes.error;
+  });
+}
+
 export async function setTrainerName(name) {
   const { error } = await supabase
     .from("user_settings")

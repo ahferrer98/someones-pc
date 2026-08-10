@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { ClipboardPaste, AlertTriangle, Trash2, Wand2, Eye, EyeOff } from "lucide-react";
+import { ClipboardPaste, AlertTriangle, Trash2, Wand2, Eye, EyeOff, ChevronDown, ChevronRight } from "lucide-react";
 import { CARD_TYPES, isInfiniteEnergy } from "../lib/constants";
 import { parseImageLines, matchCard } from "../lib/parsers";
 import { getCardData } from "../lib/pokemonTcgApi";
 import { EditableCardThumb } from "../components/EditableCardThumb";
 import { TypeSelect } from "../components/TypeSelect";
 
-export function CollectionView({ collection, assignedByCard, updateCollectionTotal, updateCollectionImage, updateCollectionType, deleteCollectionCard, setMeta }) {
+const WIPE_PHRASE = "DELETE";
+
+export function CollectionView({ collection, assignedByCard, updateCollectionTotal, updateCollectionImage, updateCollectionType, deleteCollectionCard, setMeta, wipeCollection }) {
   const [typeFilter, setTypeFilter] = useState("all");
   const [bulkImaging, setBulkImaging] = useState(false);
   const [bulkText, setBulkText] = useState("");
@@ -15,6 +17,20 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
   const [showBasicEnergy, setShowBasicEnergy] = useState(false);
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [wiping, setWiping] = useState(false);
+
+  async function handleWipe() {
+    setWiping(true);
+    try {
+      await wipeCollection();
+      setDangerOpen(false);
+      setConfirmText("");
+    } finally {
+      setWiping(false);
+    }
+  }
 
   function toggleSort(key) {
     if (sortKey === key) {
@@ -237,6 +253,45 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
             </div>
           );
         })}
+      </div>
+
+      <div style={{ marginTop: 28 }}>
+        <button
+          className="binder-btn small"
+          style={{ color: "var(--danger)", borderColor: dangerOpen ? "var(--danger)" : undefined }}
+          onClick={() => setDangerOpen((v) => !v)}
+        >
+          {dangerOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Danger zone
+        </button>
+        {dangerOpen && (
+          <div className="binder-card" style={{ padding: 14, marginTop: 8, maxWidth: 440, border: "1px solid var(--danger)" }}>
+            <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 10 }}>
+              Deletes every card in your collection and every deck/bulk tray, then reseeds the standard
+              basic energy — the same starting point as a brand-new account. This cannot be undone.
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
+              Type <span className="binder-mono" style={{ color: "var(--paper)" }}>{WIPE_PHRASE}</span> to confirm.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="binder-input binder-mono"
+                style={{ flex: 1 }}
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={WIPE_PHRASE}
+                disabled={wiping}
+              />
+              <button
+                className="binder-btn primary"
+                style={{ background: "var(--danger)", borderColor: "var(--danger)" }}
+                disabled={confirmText !== WIPE_PHRASE || wiping}
+                onClick={handleWipe}
+              >
+                <Trash2 size={14} /> {wiping ? "Wiping…" : "Wipe everything"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

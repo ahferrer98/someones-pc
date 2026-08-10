@@ -128,6 +128,23 @@ function Binder({ session }) {
     db.setTrainerName(name).catch(() => setSaveErr(true));
   }
 
+  // Deletes every card and every deck/bulk tray, then reseeds basic energy —
+  // same starting point as a brand-new account. The automatic reseed-on-load
+  // in loadData only fires for an account that has never had a settings row,
+  // which is no longer true after this account's first real load, so it has
+  // to be done explicitly here rather than just relying on that.
+  async function wipeCollection() {
+    await db.wipeAllData();
+    setStorages([]);
+    setCollection([]);
+    try {
+      const cards = await seedBasicEnergy();
+      setCollection(cards);
+    } catch (e) {
+      console.error("Could not reseed basic energy after wipe", e);
+    }
+  }
+
   const assignedByCard = useMemo(() => {
     const map = {};
     for (const s of storages) {
@@ -550,6 +567,7 @@ function Binder({ session }) {
           updateCollectionType={updateCollectionType}
           deleteCollectionCard={deleteCollectionCard}
           setMeta={setMeta}
+          wipeCollection={wipeCollection}
         />
       )}
 

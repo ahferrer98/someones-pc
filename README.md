@@ -29,6 +29,9 @@ spec and data model this was rebuilt from.
    `card-art` bucket the image cache writes to (see "Card art caching" below).
    *Upgrading a project that predates accounts? Run
    [`supabase/migration-auth.sql`](./supabase/migration-auth.sql) instead — it keeps your data.*
+   *Upgrading a project that predates List Builder's "build a deck" feature? Also run
+   [`supabase/migration-list-builder.sql`](./supabase/migration-list-builder.sql) — adds one column,
+   keeps your data.*
 3. **Turn on email sign-in** — in Supabase, Authentication → Providers → Email. Leave
    "Confirm email" on; magic links need it. Then under Authentication → URL Configuration, add
    your site URL(s) to **Redirect URLs** — `http://localhost:5173` for local work, plus your
@@ -68,6 +71,13 @@ Configuration). Magic links sent from a URL that isn't listed there will fail to
   the frontend bundle: it grants no access on its own, only what the signed-in session allows.
   Anyone can sign up and gets their own private collection.
 - A pasted `imageUrl` on a collection card always wins over the live pokemontcg.io lookup.
+- **Building a deck from List Builder.** Beyond checking a pasted list against your collection,
+  List Builder can assemble a real deck from it. Bulk trays fill in automatically since they're
+  your unbuilt pool; pulling a card out of another deck, or swapping in a substitute print, always
+  requires an explicit per-card choice — nothing moves until you review the plan and click "Create
+  deck." This never raises OWNED (it only reallocates cards already logged somewhere), unlike the
+  regular paste-import tool on a deck's own page, which can. Decks built this way carry a small
+  hammer badge so the two are easy to tell apart.
 - **Energy handling.** Ordinary basic energy is treated as unlimited — you'd otherwise have to log
   a shoebox of bulk Darkness Energy just to stop the List Builder claiming you're short. Art-rare
   basic energy (the gold/secret-rare prints) is a real, countable card, so it's tracked normally

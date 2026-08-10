@@ -19,6 +19,7 @@ create table if not exists storages (
   type text not null check (type in ('deck', 'bulk')),
   cards jsonb not null default '[]'::jsonb,
   is_default_bulk boolean not null default false,
+  built_from_list boolean not null default false,
   created_at timestamptz not null default now()
 );
 

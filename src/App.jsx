@@ -233,6 +233,59 @@ function Binder({ session }) {
     });
   }
 
+  // Builds a brand-new deck by reallocating copies that are already logged
+  // somewhere else — unlike addCardsToStorage (the paste-import tool), this
+  // never raises OWNED, since every card it places has to already exist in
+  // a source storage. `pulls` is [{ cardId, storageId, qty }], with
+  // storageId left null for an untracked placement (ordinary basic energy)
+  // that doesn't come out of any specific pile. Tagged builtFromList so it's
+  // visually distinguishable from a deck assembled via paste-import, which
+  // can register new copies as owned.
+  function buildDeckFromPlan(name, color, pulls) {
+    const validPulls = pulls.filter((p) => p.qty > 0 && p.cardId);
+    if (!name.trim() || validPulls.length === 0) return;
+
+    let nextStorages = storages;
+    const touchedStorageIds = new Set();
+    const destCards = [];
+
+    validPulls.forEach(({ cardId, storageId, qty }) => {
+      let taken = qty;
+      if (storageId) {
+        touchedStorageIds.add(storageId);
+        const s = nextStorages.find((x) => x.id === storageId);
+        const entry = s?.cards.find((c) => c.cardId === cardId);
+        const have = entry ? entry.qty : 0;
+        taken = Math.min(have, qty);
+        if (taken > 0 && s) {
+          const newQty = have - taken;
+          const cards =
+            newQty <= 0
+              ? s.cards.filter((c) => c.cardId !== cardId)
+              : s.cards.map((c) => (c.cardId === cardId ? { ...c, qty: newQty } : c));
+          nextStorages = nextStorages.map((x) => (x.id === storageId ? { ...x, cards } : x));
+        }
+      }
+      if (taken <= 0) return;
+      const existingDest = destCards.find((d) => d.cardId === cardId);
+      if (existingDest) existingDest.qty += taken;
+      else destCards.push({ cardId, qty: taken });
+    });
+
+    if (destCards.length === 0) return;
+
+    const newStorage = { id: uid(), name: name.trim(), color, type: "deck", cards: destCards, isDefaultBulk: false, builtFromList: true };
+    const finalStorages = [...nextStorages, newStorage];
+    setStorages(finalStorages);
+
+    const dbOps = [db.insertStorage(newStorage)];
+    touchedStorageIds.forEach((id) => {
+      const s = finalStorages.find((x) => x.id === id);
+      if (s) dbOps.push(db.updateStorageRow(id, { cards: s.cards }));
+    });
+    Promise.all(dbOps).catch(() => setSaveErr(true));
+  }
+
   // Removing/reducing a card FROM A DECK doesn't delete it — the physical card still exists,
   // so it moves into the designated default Bulk Tray. Reducing a BULK storage's own count
   // is treated as a real, deliberate removal with no further auto-routing.
@@ -518,7 +571,9 @@ function Binder({ session }) {
         />
       )}
 
-      {tab === "listbuilder" && <ListBuilderView collection={collection} storages={storages} setMeta={setMeta} />}
+      {tab === "listbuilder" && (
+        <ListBuilderView collection={collection} storages={storages} setMeta={setMeta} buildDeckFromPlan={buildDeckFromPlan} />
+      )}
     </div>
   );
 }

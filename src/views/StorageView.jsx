@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Plus, Trash2, X, ChevronRight, ClipboardPaste, Pencil, Check, Grid3x3, List, Minus,
-  PackageOpen, Star, Sparkles,
+  PackageOpen, Star, Sparkles, Hammer,
 } from "lucide-react";
 import { ENERGY, STORAGE_TYPES, typeInfo, norm } from "../lib/constants";
 import { parseDecklist } from "../lib/parsers";
@@ -111,10 +111,16 @@ export function StorageView({
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 20, fontWeight: 700 }}>{s.name}</div>
                     {s.type === "bulk" && <PackageOpen size={14} color="var(--muted)" />}
+                    {s.builtFromList && (
+                      <span title="Built from List Builder">
+                        <Hammer size={13} color="var(--muted)" />
+                      </span>
+                    )}
                   </div>
                   <div className="binder-mono" style={{ fontSize: 11, color: "var(--muted)" }}>
                     {s.type === "deck" ? `${total} / 60` : `${total} cards`} · {STORAGE_TYPES.find((t) => t.key === s.type)?.label}
                     {s.isDefaultBulk && <span style={{ color: "var(--foil-a)" }}> · default</span>}
+                    {s.builtFromList && <span style={{ color: "var(--foil-a)" }}> · built from list</span>}
                   </div>
                   {s.type === "bulk" && !s.isDefaultBulk && (
                     <button

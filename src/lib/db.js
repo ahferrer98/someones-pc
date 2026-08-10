@@ -69,6 +69,7 @@ function storageFromRow(r) {
     type: r.type,
     cards: r.cards || [],
     isDefaultBulk: !!r.is_default_bulk,
+    builtFromList: !!r.built_from_list,
   };
 }
 
@@ -179,6 +180,7 @@ export function insertStorage(storage) {
       type: storage.type,
       cards: storage.cards,
       is_default_bulk: !!storage.isDefaultBulk,
+      built_from_list: !!storage.builtFromList,
     });
     if (error) throw error;
   });

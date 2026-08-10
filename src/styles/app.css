@@ -171,10 +171,15 @@ body {
 .stepper-btn:hover { border-color: var(--foil-a); }
 .card-tile {
   width: 224px; padding: 12px; display: flex; flex-direction: column;
+  /* Flex items default to min-width:auto, so a long unbreakable word in
+     card-tile-name would otherwise stretch this past its set width instead
+     of wrapping, pushing the chips/controls below it out of place. */
+  min-width: 0;
 }
 .card-tile-name {
   font-size: 11.5px; line-height: 1.25; margin-top: 6px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: break-word;
 }
 .holo-panel {
   position: relative;
@@ -200,7 +205,11 @@ body {
   .binder-root { padding: 18px 12px 50px; }
   .binder-title { font-size: 30px; margin-bottom: 16px; }
   .binder-tab { font-size: 16px; padding: 9px 12px; }
-  .card-tile { width: 224px; }
+  /* 224px (the base/desktop size) only fits one column on a real phone
+     screen. CardThumb's `fill` prop makes the art follow this width, so
+     shrinking the tile shrinks the art with it instead of leaving a fixed
+     200x280 image stuck sticking out of a smaller box. */
+  .card-tile { width: 165px; padding: 10px; }
   .binder-storage-tile { width: 100% !important; }
   .binder-row { font-size: 13px; }
 }

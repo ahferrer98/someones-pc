@@ -21,17 +21,34 @@ function CachedImg({ original, card, variant, alt, style }) {
   );
 }
 
-export function CardThumb({ card, w = 40, h = 56 }) {
+// `w`/`h` pick which art resolution to fetch (see the large/small split
+// below) — that's a fixed, deliberate choice independent of display size.
+// `fill`, when set, decouples the RENDERED box from those numbers: instead
+// of a fixed pixel size, the thumb fills 100% of its parent's width at the
+// same aspect ratio, so a CSS breakpoint on the parent (e.g. a smaller
+// .card-tile on narrow phones) resizes the art too, without silently
+// switching to the low-res art that a smaller `w` would trigger.
+export function CardThumb({ card, w = 40, h = 56, fill = false }) {
   const apiImg = useCardImage(card, !!card.imageUrl);
-  const box = {
-    width: w,
-    height: h,
-    borderRadius: 5,
-    flexShrink: 0,
-    background: "var(--ink-800)",
-    border: "1px solid var(--ink-700)",
-    objectFit: "cover",
-  };
+  const box = fill
+    ? {
+        width: "100%",
+        aspectRatio: `${w} / ${h}`,
+        borderRadius: 5,
+        flexShrink: 0,
+        background: "var(--ink-800)",
+        border: "1px solid var(--ink-700)",
+        objectFit: "cover",
+      }
+    : {
+        width: w,
+        height: h,
+        borderRadius: 5,
+        flexShrink: 0,
+        background: "var(--ink-800)",
+        border: "1px solid var(--ink-700)",
+        objectFit: "cover",
+      };
   if (card.imageUrl) {
     return <CachedImg original={card.imageUrl} card={card} variant="custom" alt={card.name} style={box} />;
   }

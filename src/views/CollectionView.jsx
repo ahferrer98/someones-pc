@@ -13,6 +13,20 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
   const [detecting, setDetecting] = useState(false);
   const [detectResult, setDetectResult] = useState(null);
   const [showBasicEnergy, setShowBasicEnergy] = useState(false);
+  const [sortKey, setSortKey] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
+
+  function toggleSort(key) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+  function sortIndicator(key) {
+    return sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+  }
 
   const bulkPreview = useMemo(() => {
     return parseImageLines(bulkText).map((line) => {
@@ -61,7 +75,26 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
   const listed = showBasicEnergy ? collection : collection.filter((c) => !isInfiniteEnergy(c, setMeta));
 
   const filtered = listed.filter((c) => typeFilter === "all" || c.cardType === typeFilter || (!c.cardType && typeFilter === "pokemon"));
-  const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Spare/infinite are computed once here rather than during render, so the
+  // SPARE column can be sorted on the same value it displays.
+  const rows = filtered.map((c) => ({
+    card: c,
+    infinite: isInfiniteEnergy(c, setMeta),
+    spare: c.total - (assignedByCard[c.id] || 0),
+  }));
+
+  const SORTERS = {
+    name: (a, b) => a.card.name.localeCompare(b.card.name),
+    set: (a, b) => (a.card.set || "").localeCompare(b.card.set || "") || (a.card.number || "").localeCompare(b.card.number || ""),
+    type: (a, b) => (a.card.cardType || "pokemon").localeCompare(b.card.cardType || "pokemon"),
+    owned: (a, b) => a.card.total - b.card.total,
+    spare: (a, b) => a.spare - b.spare,
+  };
+  const sorted = [...rows].sort((a, b) => {
+    const cmp = SORTERS[sortKey](a, b) || a.card.name.localeCompare(b.card.name);
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   return (
     <div>
@@ -151,17 +184,24 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
       <div className="binder-card">
         <div className="binder-row" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: "var(--muted)" }}>
           <span style={{ width: 40 }} />
-          <span style={{ flex: 1 }}>CARD</span>
-          <span className="binder-mono" style={{ width: 100 }}>SET / NO.</span>
-          <span style={{ width: 130 }}>TYPE</span>
-          <span style={{ width: 60, textAlign: "center" }}>OWNED</span>
-          <span style={{ width: 60, textAlign: "center" }}>SPARE</span>
+          <span style={{ flex: 1, cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("name")}>
+            CARD{sortIndicator("name")}
+          </span>
+          <span className="binder-mono" style={{ width: 100, cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("set")}>
+            SET / NO.{sortIndicator("set")}
+          </span>
+          <span style={{ width: 130, cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("type")}>
+            TYPE{sortIndicator("type")}
+          </span>
+          <span style={{ width: 60, textAlign: "center", cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("owned")}>
+            OWNED{sortIndicator("owned")}
+          </span>
+          <span style={{ width: 60, textAlign: "center", cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("spare")}>
+            SPARE{sortIndicator("spare")}
+          </span>
           <span style={{ width: 20 }} />
         </div>
-        {sorted.map((c) => {
-          const assigned = assignedByCard[c.id] || 0;
-          const infinite = isInfiniteEnergy(c, setMeta);
-          const spare = c.total - assigned;
+        {sorted.map(({ card: c, infinite, spare }) => {
           return (
             <div key={c.id} className="binder-row">
               <EditableCardThumb card={c} onSave={(url) => updateCollectionImage(c.id, url)} />

@@ -354,7 +354,7 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
               const ti = typeInfo(card.cardType);
               return (
                 <div key={sc.cardId} className="binder-card card-tile">
-                  <CardThumb card={card} w={130} h={182} />
+                  <CardThumb card={card} w={200} h={280} />
                   <div className="card-tile-name">{card.name}</div>
                   <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
                     <span className="binder-chip" style={{ color: ti.hex, borderColor: ti.hex }}>{ti.label}</span>

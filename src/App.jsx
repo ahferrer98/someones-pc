@@ -389,8 +389,14 @@ function Binder({ session }) {
 
   if (!ready) return null;
 
+  // A sparse tab (e.g. Storage with just a couple of tiles) used to sit pinned
+  // to the top of the window with a large empty void below it on a tall
+  // monitor. Centering the whole block vertically when it's shorter than the
+  // viewport fixes that; content taller than the viewport is unaffected,
+  // since justify-content:center has no effect once a flex child already
+  // fills or exceeds the container.
   return (
-    <div className="binder-root">
+    <div className="binder-root" style={{ display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div className="binder-eyebrow">
           physical inventory · {storages.filter((s) => s.type === "deck").length} decks ·{" "}

@@ -148,7 +148,7 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
         )}
       </div>
 
-      <div className="binder-card">
+      <div className="binder-card" style={{ maxWidth: 1100 }}>
         <div className="binder-row" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: "var(--muted)" }}>
           <span style={{ width: 40 }} />
           <span style={{ flex: 1 }}>CARD</span>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, Boxes, MapPin, ListChecks, Pencil, Check, X, LogOut } from "lucide-react";
 import { uid, norm } from "./lib/constants";
 import { loadSetMeta } from "./lib/pokemonTcgApi";
@@ -57,6 +57,7 @@ function Binder({ session }) {
   const [storages, setStorages] = useState([]);
   const [ready, setReady] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
+  const [retrying, setRetrying] = useState(0);
   const [tab, setTab] = useState("storage");
   const [openStorage, setOpenStorage] = useState(null);
   const [query, setQuery] = useState("");
@@ -79,38 +80,46 @@ function Binder({ session }) {
     };
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      db.setCurrentUser(session.user.id);
-      try {
-        const data = await db.fetchAll();
-        let cards = data.collection;
-        // No settings row means this account has never loaded before — give it
-        // the standard basic energy so decklists don't report bulk shortages.
-        // Requiring both the collection AND the storage list to be empty keeps
-        // this from firing on an account whose rows exist but aren't visible
-        // yet, which would seed a duplicate set.
-        if (!data.hasSettingsRow) {
-          await db.setTrainerName("");
-          if (cards.length === 0 && data.storages.length === 0) {
-            try {
-              cards = await seedBasicEnergy();
-            } catch (e) {
-              console.error("Could not seed basic energy", e);
-            }
+  // db.fetchAll() already retries transient failures a few times internally;
+  // this is what runs after it truly gives up, and what the error banner's
+  // "Try again" button re-invokes by hand.
+  const loadData = useCallback(async () => {
+    setRetrying((r) => r + 1);
+    db.setCurrentUser(session.user.id);
+    try {
+      const data = await db.fetchAll();
+      let cards = data.collection;
+      // No settings row means this account has never loaded before — give it
+      // the standard basic energy so decklists don't report bulk shortages.
+      // Requiring both the collection AND the storage list to be empty keeps
+      // this from firing on an account whose rows exist but aren't visible
+      // yet, which would seed a duplicate set.
+      if (!data.hasSettingsRow) {
+        await db.setTrainerName("");
+        if (cards.length === 0 && data.storages.length === 0) {
+          try {
+            cards = await seedBasicEnergy();
+          } catch (e) {
+            console.error("Could not seed basic energy", e);
           }
         }
-        setCollection(cards);
-        setStorages(data.storages);
-        setTrainerName(data.trainerName);
-      } catch (e) {
-        console.error(e);
-        setLoadErr(true);
-      } finally {
-        setReady(true);
       }
-    })();
+      setCollection(cards);
+      setStorages(data.storages);
+      setTrainerName(data.trainerName);
+      setLoadErr(false);
+    } catch (e) {
+      console.error(e);
+      setLoadErr(true);
+    } finally {
+      setReady(true);
+      setRetrying((r) => r - 1);
+    }
   }, [session.user.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   function commitName() {
     const name = nameDraft.trim();
@@ -413,9 +422,11 @@ function Binder({ session }) {
       </div>
 
       {loadErr && (
-        <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 14 }}>
-          Couldn't load your data from Supabase — check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY and that the schema
-          in supabase/schema.sql has been applied.
+        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--danger)", fontSize: 12, marginBottom: 14 }}>
+          <span>Couldn't load your data — check your connection and try again.</span>
+          <button className="binder-btn small" onClick={loadData} disabled={retrying > 0}>
+            {retrying > 0 ? "Retrying…" : "Try again"}
+          </button>
         </div>
       )}
       {saveErr && (

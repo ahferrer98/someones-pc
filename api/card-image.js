@@ -35,10 +35,22 @@ export default async function handler(req, res) {
   const path = cacheFileName(String(key || src));
   const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
+  // 301 vs 302 matters here beyond HTTP pedantry: a 301 is universally treated
+  // as safe to cache long-term, even without an explicit Cache-Control header,
+  // while a 302 is conventionally "temporary" and browsers — mobile Safari
+  // especially — have been inconsistent about honoring Cache-Control on one.
+  // Confirmed by testing: the deployed function was already returning 302 with
+  // this same Cache-Control header, but repeat mobile loads were still slow,
+  // consistent with the browser re-asking this function instead of caching
+  // the redirect and going straight to Storage next time. The two paths below
+  // that redirect to the real, permanent Storage location use 301; the
+  // fallback path (redirecting to the original source because caching failed)
+  // stays 302, since that's a degraded, temporary answer we don't want a
+  // browser to lock in — the real cached copy might exist on the next request.
   try {
     const head = await fetch(publicUrl, { method: "HEAD" });
     if (head.ok) {
-      res.redirect(302, publicUrl);
+      res.redirect(301, publicUrl);
       return;
     }
   } catch (e) {
@@ -57,7 +69,7 @@ export default async function handler(req, res) {
     });
     if (error) throw error;
 
-    res.redirect(302, publicUrl);
+    res.redirect(301, publicUrl);
   } catch (e) {
     // Cache miss and the origin fetch/upload failed too — send the browser
     // straight to the original image so it still has a chance to render,

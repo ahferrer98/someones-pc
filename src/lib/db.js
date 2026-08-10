@@ -72,11 +72,33 @@ function storageFromRow(r) {
   };
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // No user filter on the selects: row-level security already scopes them to the
 // signed-in account, and duplicating that here would just be a second place to
 // get it wrong. `hasSettingsRow` distinguishes a brand-new account (needs its
 // starter energy seeded) from one whose trainer name is simply blank.
+//
+// This is the very first network call the app makes after sign-in, right as
+// the page (and the Supabase client's session restore) is still settling —
+// exactly the moment a cold connection, a DNS hiccup, or a brief lag before
+// the session is fully attached to outgoing requests is most likely to bite.
+// Previously a single failure here was permanent until a manual refresh; now
+// it retries a few times with backoff before actually giving up.
 export async function fetchAll() {
+  let lastErr;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await sleep(400 * 2 ** (attempt - 1));
+    try {
+      return await fetchAllOnce();
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
+async function fetchAllOnce() {
   assertConfigured();
   const userId = requireUser();
   const [cardsRes, storagesRes, settingsRes] = await Promise.all([

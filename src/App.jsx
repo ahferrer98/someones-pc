@@ -306,10 +306,45 @@ function Binder({ session }) {
     db.updateStorageRow(id, patch).catch(() => setSaveErr(true));
   }
 
+  // Deleting a whole deck honors the same rule as removing individual cards
+  // from it: the physical cards still exist, so they land in the default
+  // Bulk Tray instead of just vanishing from "placed" tracking the moment the
+  // deck row disappears. A bulk tray has no such landing spot when deleted —
+  // matches "removing from bulk itself is final and manual" elsewhere in the
+  // app, so a bulk tray's cards are simply dropped, same as before this fix.
   function deleteStorage(id) {
-    setStorages((prev) => prev.filter((s) => s.id !== id));
+    const target = storages.find((s) => s.id === id);
+    if (!target) return;
+
+    let next = storages.filter((s) => s.id !== id);
+    const dbOps = [db.deleteStorageRow(id)];
+
+    if (target.type === "deck" && target.cards.length > 0) {
+      let bulk = next.find((s) => s.isDefaultBulk);
+      let bulkIsNew = false;
+      if (!bulk) {
+        bulk = { id: uid(), name: "Bulk Storage", color: "#cbd5e1", type: "bulk", cards: [], isDefaultBulk: true };
+        next = [...next, bulk];
+        bulkIsNew = true;
+      }
+      let mergedCards = bulk.cards;
+      for (const c of target.cards) {
+        const existing = mergedCards.find((mc) => mc.cardId === c.cardId);
+        mergedCards = existing
+          ? mergedCards.map((mc) => (mc.cardId === c.cardId ? { ...mc, qty: mc.qty + c.qty } : mc))
+          : [...mergedCards, { cardId: c.cardId, qty: c.qty }];
+      }
+      next = next.map((s) => (s.id === bulk.id ? { ...s, cards: mergedCards } : s));
+      dbOps.push(
+        bulkIsNew
+          ? db.insertStorage({ ...bulk, cards: mergedCards })
+          : db.updateStorageRow(bulk.id, { cards: mergedCards })
+      );
+    }
+
+    setStorages(next);
     if (openStorage === id) setOpenStorage(null);
-    db.deleteStorageRow(id).catch(() => setSaveErr(true));
+    Promise.all(dbOps).catch(() => setSaveErr(true));
   }
 
   function updateCollectionTotal(cardId, total) {

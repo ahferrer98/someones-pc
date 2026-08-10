@@ -224,5 +224,5 @@ body {
 }
 
 @media (min-width: 1440px) {
-  .binder-root { max-width: 1440px; margin: 0 auto; }
+  .binder-root { max-width: 1800px; margin: 0 auto; }
 }

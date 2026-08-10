@@ -233,6 +233,7 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
               <EditableCardThumb card={c} onSave={(url) => updateCollectionImage(c.id, url)} />
               <span style={{ flex: 1 }}>{c.name}</span>
               <span className="binder-chip binder-mono" style={{ width: 100, textAlign: "center" }}>{c.set || "—"} {c.number ? `#${c.number}` : ""}</span>
+              <span className="row-break" />
               <TypeSelect value={c.cardType || "pokemon"} onChange={(v) => updateCollectionType(c.id, v)} style={{ width: 130 }} />
               {infinite ? (
                 <span className="binder-mono" style={{ width: 54, textAlign: "center", color: "var(--muted)" }} title="Ordinary basic energy — treated as unlimited. Art-rare (secret) energy prints are tracked normally.">∞</span>

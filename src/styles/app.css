@@ -154,6 +154,13 @@ body {
   flex-wrap: wrap;
 }
 .binder-row:last-child { border-bottom: none; }
+/* Invisible on desktop, where everything fits on one line. On narrow
+   screens (see the row-break rule below), it forces every row to wrap at
+   the same point regardless of name length -- otherwise a long name eats
+   into the space TYPE needs, so TYPE gets pushed down to share a line with
+   OWNED/SPARE/delete for long names but not short ones, an inconsistent
+   layout depending on card name length rather than a deliberate one. */
+.row-break { display: none; }
 .binder-empty {
   text-align: center;
   padding: 40px 20px;
@@ -212,6 +219,7 @@ body {
   .card-tile { width: 165px; padding: 10px; }
   .binder-storage-tile { width: 100% !important; }
   .binder-row { font-size: 13px; }
+  .row-break { display: block; flex-basis: 100%; height: 0; }
 }
 
 /* The sizing above was tuned for a Claude-artifact iframe a few hundred

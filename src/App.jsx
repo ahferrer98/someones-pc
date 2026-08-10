@@ -408,16 +408,16 @@ function Binder({ session }) {
 
       <div className="binder-tabs">
         <button className={`binder-tab ${tab === "storage" ? "active" : ""}`} onClick={() => setTab("storage")}>
-          <Archive size={16} /> Storage
+          <Archive size={18} /> Storage
         </button>
         <button className={`binder-tab ${tab === "collection" ? "active" : ""}`} onClick={() => setTab("collection")}>
-          <Boxes size={16} /> Collection
+          <Boxes size={18} /> Collection
         </button>
         <button className={`binder-tab ${tab === "locate" ? "active" : ""}`} onClick={() => setTab("locate")}>
-          <MapPin size={16} /> Locate a card
+          <MapPin size={18} /> Locate a card
         </button>
         <button className={`binder-tab ${tab === "listbuilder" ? "active" : ""}`} onClick={() => setTab("listbuilder")}>
-          <ListChecks size={16} /> List Builder
+          <ListChecks size={18} /> List Builder
         </button>
       </div>
 

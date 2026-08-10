@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ClipboardPaste, AlertTriangle, Trash2, Wand2, Eye, EyeOff, ChevronDown, ChevronRight } from "lucide-react";
-import { CARD_TYPES, isInfiniteEnergy } from "../lib/constants";
+import { CARD_TYPES, isInfiniteEnergy, norm } from "../lib/constants";
 import { parseImageLines, matchCard } from "../lib/parsers";
 import { getCardData } from "../lib/pokemonTcgApi";
 import { EditableCardThumb } from "../components/EditableCardThumb";
@@ -10,6 +10,7 @@ const WIPE_PHRASE = "DELETE";
 
 export function CollectionView({ collection, assignedByCard, updateCollectionTotal, updateCollectionImage, updateCollectionType, deleteCollectionCard, setMeta, wipeCollection }) {
   const [typeFilter, setTypeFilter] = useState("all");
+  const [query, setQuery] = useState("");
   const [bulkImaging, setBulkImaging] = useState(false);
   const [bulkText, setBulkText] = useState("");
   const [detecting, setDetecting] = useState(false);
@@ -90,7 +91,8 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
   const basicEnergy = collection.filter((c) => isInfiniteEnergy(c, setMeta));
   const listed = showBasicEnergy ? collection : collection.filter((c) => !isInfiniteEnergy(c, setMeta));
 
-  const filtered = listed.filter((c) => typeFilter === "all" || c.cardType === typeFilter || (!c.cardType && typeFilter === "pokemon"));
+  const searched = listed.filter((c) => !query.trim() || norm(c.name).includes(norm(query)));
+  const filtered = searched.filter((c) => typeFilter === "all" || c.cardType === typeFilter || (!c.cardType && typeFilter === "pokemon"));
 
   // Spare/infinite are computed once here rather than during render, so the
   // SPARE column can be sorted on the same value it displays.
@@ -167,12 +169,20 @@ export function CollectionView({ collection, assignedByCard, updateCollectionTot
         </div>
       )}
 
+      <input
+        className="binder-input"
+        style={{ width: "100%", maxWidth: 320, marginBottom: 12 }}
+        placeholder="Search this collection by name…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <button className={`binder-btn small ${typeFilter === "all" ? "active-filter" : ""}`} onClick={() => setTypeFilter("all")}>
-          All ({listed.length})
+          All ({searched.length})
         </button>
         {CARD_TYPES.map((t) => {
-          const count = listed.filter((c) => (c.cardType || "pokemon") === t.key).length;
+          const count = searched.filter((c) => (c.cardType || "pokemon") === t.key).length;
           if (count === 0) return null;
           const active = typeFilter === t.key;
           return (

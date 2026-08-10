@@ -25,6 +25,7 @@ body {
   color: var(--paper);
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100%;
+  box-sizing: border-box;
   padding: 28px 20px 60px;
   background-image:
     radial-gradient(circle at 15% 0%, rgba(125,211,252,0.05), transparent 40%),

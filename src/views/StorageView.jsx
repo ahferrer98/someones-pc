@@ -3,9 +3,9 @@ import {
   Plus, Trash2, X, ChevronRight, ClipboardPaste, Pencil, Check, Grid3x3, List, Minus,
   PackageOpen, Star, Sparkles, Hammer,
 } from "lucide-react";
-import { ENERGY, STORAGE_TYPES, typeInfo, norm } from "../lib/constants";
+import { ENERGY, STORAGE_TYPES, typeInfo, norm, looksLikeEnergyName } from "../lib/constants";
 import { parseDecklist } from "../lib/parsers";
-import { getCardData } from "../lib/pokemonTcgApi";
+import { getCardData, guessCardTypeByName } from "../lib/pokemonTcgApi";
 import { CardThumb } from "../components/CardThumb";
 import { TypeSelect } from "../components/TypeSelect";
 
@@ -237,11 +237,13 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
   const [number, setNumber] = useState("");
   const [qty, setQty] = useState(1);
   const [cardType, setCardType] = useState("pokemon");
+  const [typeTouched, setTypeTouched] = useState(false);
   const [suggest, setSuggest] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
   const [preview, setPreview] = useState([]);
   const [detecting, setDetecting] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
 
   if (!storage) return null;
@@ -276,8 +278,26 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
 
   function onNameChange(v) {
     setName(v);
+    // Cheap, free correction for an obvious case (the type still sitting at
+    // its untouched Pokémon default): once the user picks a type themselves,
+    // this stops overriding it.
+    if (!typeTouched && looksLikeEnergyName(v)) setCardType("energy");
     if (v.trim().length < 2) return setSuggest([]);
     setSuggest(collection.filter((c) => norm(c.name).includes(norm(v))).slice(0, 5));
+  }
+
+  // Best-effort correction for whatever the free name heuristic can't catch
+  // (Trainer subtypes, non-"Energy"-named energy cards) -- only runs while
+  // the user hasn't made an explicit type choice, and only ever narrows a
+  // still-default guess, never overrides a deliberate one.
+  async function resolveTypeBeforeAdd() {
+    if (typeTouched) return cardType;
+    if (set.trim() && number.trim()) {
+      const data = await getCardData({ name, set, number });
+      return data?.cardType || cardType;
+    }
+    const guessed = await guessCardTypeByName(name);
+    return guessed || cardType;
   }
 
   return (
@@ -402,6 +422,7 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
                     setSet(s.set);
                     setNumber(s.number);
                     setCardType(s.cardType || "pokemon");
+                    setTypeTouched(true);
                     setSuggest([]);
                   }}
                 >
@@ -414,7 +435,14 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
         </div>
         <input className="binder-input" style={{ flex: "1 1 70px" }} placeholder="Set" value={set} onChange={(e) => setSet(e.target.value)} />
         <input className="binder-input" style={{ flex: "1 1 60px" }} placeholder="No." value={number} onChange={(e) => setNumber(e.target.value)} />
-        <TypeSelect value={cardType} onChange={setCardType} style={{ flex: "1 1 130px" }} />
+        <TypeSelect
+          value={cardType}
+          onChange={(v) => {
+            setCardType(v);
+            setTypeTouched(true);
+          }}
+          style={{ flex: "1 1 130px" }}
+        />
         <input
           className="binder-input binder-mono"
           type="number"
@@ -425,18 +453,23 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
         />
         <button
           className="binder-btn primary"
-          onClick={() => {
+          disabled={adding}
+          onClick={async () => {
             if (!name.trim()) return;
-            addCardToStorage(storage.id, { name, set, number, qty, cardType });
+            setAdding(true);
+            const resolvedType = await resolveTypeBeforeAdd();
+            addCardToStorage(storage.id, { name, set, number, qty, cardType: resolvedType });
             setName("");
             setSet("");
             setNumber("");
             setQty(1);
             setCardType("pokemon");
+            setTypeTouched(false);
             setSuggest([]);
+            setAdding(false);
           }}
         >
-          <Plus size={15} /> Add
+          <Plus size={15} /> {adding ? "Adding…" : "Add"}
         </button>
         <button
           className="binder-btn"

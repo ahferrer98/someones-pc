@@ -25,6 +25,13 @@ export const typeInfo = (key) => CARD_TYPES.find((t) => t.key === key) || CARD_T
 
 export const isBasicEnergyName = (name) => /^\s*basic\b/i.test(name || "");
 
+// Cheap, offline first pass for the quick-add form: catches an obvious miss
+// like "Voltaic Energy" landing in the default Pokémon type before it's even
+// added, no API round-trip needed. Doesn't attempt Trainer subtypes (Item vs
+// Supporter vs Tool vs Stadium isn't guessable from the name) -- that's what
+// the live pokemontcg.io lookup alongside this is for.
+export const looksLikeEnergyName = (name) => /\benergy\b/i.test(name || "");
+
 // Secret rares only exist in full expansions. Small utility sets — the
 // energy-only sets, promo sets, trainer galleries — number their cards past the
 // printed total as a matter of course without any of them being chase cards

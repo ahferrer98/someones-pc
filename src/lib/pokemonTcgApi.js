@@ -293,3 +293,20 @@ export function getCardData(card) {
 export function getCachedCardData(card) {
   return resolved.get(cardCacheKey(card));
 }
+
+// Best-effort type guess for the quick-add form when no set/number was
+// given, so getCardData (which requires both) can't run its exact-print
+// lookup. Takes whichever print of the name comes back first -- fine here,
+// since only cardType is used, and that's the same across every print of a
+// given card. Not cached: a name-only match isn't tied to the specific print
+// getCardData's cache key represents, so caching it under that key would be
+// wrong once the real print is known.
+export async function guessCardTypeByName(name) {
+  if (!name || !name.trim()) return null;
+  try {
+    const hit = await schedule(() => queryOnce(`name:"${name.trim()}"`));
+    return hit ? cardTypeFromApiCard(hit) : null;
+  } catch (e) {
+    return null;
+  }
+}

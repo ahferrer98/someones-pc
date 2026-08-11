@@ -244,6 +244,7 @@ async function fetchCard(card) {
         return {
           images: hit.images || null,
           cardType: cardTypeFromApiCard(hit),
+          name: hit.name || null,
         };
       }
     }

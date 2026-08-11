@@ -244,6 +244,7 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
   const [preview, setPreview] = useState([]);
   const [detecting, setDetecting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [addNote, setAddNote] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
 
   if (!storage) return null;
@@ -286,18 +287,48 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
     setSuggest(collection.filter((c) => norm(c.name).includes(norm(v))).slice(0, 5));
   }
 
-  // Best-effort correction for whatever the free name heuristic can't catch
-  // (Trainer subtypes, non-"Energy"-named energy cards) -- only runs while
-  // the user hasn't made an explicit type choice, and only ever narrows a
-  // still-default guess, never overrides a deliberate one.
-  async function resolveTypeBeforeAdd() {
-    if (typeTouched) return cardType;
+  // Set + number uniquely identify a real print, so when both are given and
+  // resolve to an actual card, that print's own name wins over whatever was
+  // typed — a mismatched or mistyped name (e.g. "Hiding Energy" entered
+  // under a print that's actually "Voltaic Energy") gets corrected outright
+  // rather than filed under whichever label happened to be typed. Type
+  // follows the same rule unless the user picked one themselves (typeTouched).
+  // Without a set/number there's no print to verify against, so a bare name
+  // can only ever fill in a still-default type guess, never rewrite itself.
+  async function resolveCardBeforeAdd() {
     if (set.trim() && number.trim()) {
       const data = await getCardData({ name, set, number });
-      return data?.cardType || cardType;
+      const setLabel = `${set.trim().toUpperCase()} #${number.trim()}`;
+      if (data) {
+        const resolvedName = data.name || name;
+        const note =
+          norm(resolvedName) !== norm(name)
+            ? `Corrected name to "${resolvedName}" — that's what pokemontcg.io has on file for ${setLabel}.`
+            : null;
+        return { name: resolvedName, cardType: typeTouched ? cardType : data.cardType || cardType, note };
+      }
+      return { name, cardType, note: `No matching print found for ${setLabel} — added as entered. Double check the set/number if that's unexpected.` };
     }
+    if (typeTouched) return { name, cardType, note: null };
     const guessed = await guessCardTypeByName(name);
-    return guessed || cardType;
+    return { name, cardType: guessed || cardType, note: null };
+  }
+
+  async function commitAdd(registerAsOwned) {
+    if (!name.trim()) return;
+    setAdding(true);
+    setAddNote(null);
+    const resolved = await resolveCardBeforeAdd();
+    addCardToStorage(storage.id, { name: resolved.name, set, number, qty, cardType: resolved.cardType }, registerAsOwned);
+    setName("");
+    setSet("");
+    setNumber("");
+    setQty(1);
+    setCardType("pokemon");
+    setTypeTouched(false);
+    setSuggest([]);
+    setAdding(false);
+    setAddNote(resolved.note);
   }
 
   return (
@@ -451,43 +482,21 @@ function StorageDetail({ storage, cardById, addCardToStorage, addCardsToStorage,
           value={qty}
           onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
         />
-        <button
-          className="binder-btn primary"
-          disabled={adding}
-          onClick={async () => {
-            if (!name.trim()) return;
-            setAdding(true);
-            const resolvedType = await resolveTypeBeforeAdd();
-            addCardToStorage(storage.id, { name, set, number, qty, cardType: resolvedType });
-            setName("");
-            setSet("");
-            setNumber("");
-            setQty(1);
-            setCardType("pokemon");
-            setTypeTouched(false);
-            setSuggest([]);
-            setAdding(false);
-          }}
-        >
+        <button className="binder-btn primary" disabled={adding} onClick={() => commitAdd(false)}>
           <Plus size={15} /> {adding ? "Adding…" : "Add"}
         </button>
         <button
           className="binder-btn"
+          disabled={adding}
           title="Use when these are copies you just physically acquired — adds to this storage AND raises your owned total by the same amount"
-          onClick={() => {
-            if (!name.trim()) return;
-            addCardToStorage(storage.id, { name, set, number, qty, cardType }, true);
-            setName("");
-            setSet("");
-            setNumber("");
-            setQty(1);
-            setCardType("pokemon");
-            setSuggest([]);
-          }}
+          onClick={() => commitAdd(true)}
         >
           <Sparkles size={15} /> Add new pickup
         </button>
       </div>
+      {addNote && (
+        <div style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 6 }}>{addNote}</div>
+      )}
       <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6 }}>
         <b>Add</b> places existing/spare copies here. <b>Add new pickup</b> also raises your owned total — use it
         when you just physically got the card.

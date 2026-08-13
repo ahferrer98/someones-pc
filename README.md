@@ -36,6 +36,15 @@ spec and data model this was rebuilt from.
    "Confirm email" on; magic links need it. Then under Authentication → URL Configuration, add
    your site URL(s) to **Redirect URLs** — `http://localhost:5173` for local work, plus your
    deployed URL later. Links sent to an unlisted URL will refuse to sign in.
+   *Sharing the deployed app with more than one or two people? Also set up custom SMTP (next
+   step) before you do — without it, sign-in emails silently start failing with "email rate
+   limit exceeded" once a handful go out in the same hour.*
+   - **Custom SMTP (required for anything beyond solo/dev use)** — Supabase's default email
+     sender is capped very low (a handful of emails per hour, shared across every user of the
+     project), fine for testing but not for real traffic. Point Auth at your own sender instead:
+     in Supabase, Project Settings → Authentication → SMTP Settings, enable "Custom SMTP", and
+     fill in a transactional email provider's credentials. [Resend](https://resend.com) is a
+     simple option with a free tier — see "Setting up Resend" below for the exact steps.
 4. **Copy your API keys** — in your Supabase project, go to Settings → API and copy the
    Project URL and the `anon` public key.
 5. **Configure env vars**:
@@ -61,6 +70,42 @@ if you're using one. `.env` is gitignored, so these don't travel with the repo. 
 
 Then add the deployed URL to **Redirect URLs** in Supabase (Authentication → URL
 Configuration). Magic links sent from a URL that isn't listed there will fail to sign in.
+
+## Setting up Resend for custom SMTP
+
+Needed once more than a couple of people are using the deployed app — see the note under
+"Turn on email sign-in" above for why.
+
+1. **Create a Resend account** at [resend.com](https://resend.com) — the free tier (3,000
+   emails/month, 100/day) is plenty for this app.
+2. **Add and verify a sending domain.** In the Resend dashboard, go to **Domains → Add
+   Domain**, enter a domain you control. Resend gives you a handful of DNS records (SPF, DKIM,
+   sometimes a tracking CNAME) — add those at your domain registrar/DNS provider. Verification
+   is automatic once they propagate, usually a few minutes, occasionally longer. *Don't have a
+   spare domain? Resend also supports sending from their own shared domain for testing, but
+   plan to move to your own before relying on it — shared-domain sending is more likely to land
+   in spam.*
+3. **Create an SMTP API key.** In Resend, go to **API Keys → Create API Key**. Name it
+   something like "supabase-smtp", leave it at full access (or scope it to "Sending" only if
+   offered). Copy the key immediately — Resend only shows it once.
+4. **Plug it into Supabase.** In your Supabase project: **Project Settings → Authentication →
+   SMTP Settings**, toggle **Enable Custom SMTP**, then fill in:
+   - **Sender email** — an address `@` the domain you verified in step 2 (e.g.
+     `noreply@yourdomain.com`)
+   - **Sender name** — whatever you want shown as the "from" name, e.g. `Someone's PC`
+   - **Host** — `smtp.resend.com`
+   - **Port** — `465` (SSL) or `587` (STARTTLS) — either works, 465 is Resend's default
+   - **Username** — literally the word `resend`
+   - **Password** — the API key you copied in step 3
+   Save.
+5. **Test it.** Sign out of the app (or open an incognito window) and request a sign-in link
+   for a real email you can check. It should arrive within a few seconds, sent from the address
+   you set as "Sender email" — confirms the whole chain (Resend → Supabase → your inbox) works.
+
+If the test email doesn't arrive: check Resend's dashboard under **Logs** — it shows every send
+attempt and the exact rejection reason if one failed, which is almost always an unverified
+domain (step 2 not finished propagating yet) or a sender address that doesn't match the
+verified domain.
 
 ## Notes
 

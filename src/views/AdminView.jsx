@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
-import { RefreshCw, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, AlertTriangle, CheckCircle2, Circle, Users, Activity } from "lucide-react";
 import { supabase } from "../supabaseClient";
+
+const HOUR_MS = 60 * 60 * 1000;
 
 function fmt(iso) {
   if (!iso) return "never";
@@ -42,9 +44,16 @@ export function AdminView() {
     load();
   }, []);
 
+  // Derived from the same rows the table renders — no separate request needed,
+  // "active" just means a sign-in timestamp within the last hour.
+  const activeLastHour = useMemo(
+    () => users.filter((u) => u.lastSignInAt && Date.now() - new Date(u.lastSignInAt).getTime() < HOUR_MS).length,
+    [users]
+  );
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
         <div style={{ fontSize: 12.5, color: "var(--muted)" }}>
           Every account that has ever signed in, most recently active first.
         </div>
@@ -52,6 +61,21 @@ export function AdminView() {
           <RefreshCw size={13} /> {status === "loading" ? "Loading…" : "Refresh"}
         </button>
       </div>
+
+      {status === "ready" && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          <div className="binder-card" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 9 }}>
+            <Users size={16} style={{ color: "var(--foil-a)" }} />
+            <span className="binder-mono" style={{ fontSize: 18, fontWeight: 700 }}>{users.length}</span>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>{users.length === 1 ? "account" : "accounts"}</span>
+          </div>
+          <div className="binder-card" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 9 }}>
+            <Activity size={16} style={{ color: "var(--good)" }} />
+            <span className="binder-mono" style={{ fontSize: 18, fontWeight: 700 }}>{activeLastHour}</span>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>active in the past hour</span>
+          </div>
+        </div>
+      )}
 
       {status === "error" && (
         <div className="binder-card" style={{ padding: 14, display: "flex", gap: 8, color: "var(--danger)", fontSize: 13 }}>

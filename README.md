@@ -166,6 +166,27 @@ This only works once deployed — there's no Vercel function under `vite dev`, s
 failure, which is what local dev does automatically; card art still displays, just without the
 caching.
 
+### Admin usage view
+
+An optional "Admin" tab shows every account that's ever signed up — email, last sign-in,
+join date, and how much they've logged (unique cards, decks, bulk trays) — for whoever's
+running the deployment. Off by default; nobody sees it unless you turn it on.
+
+1. **Set `VITE_ADMIN_EMAIL`** in your deployment's env vars to the exact email of the account
+   that should see the tab. Every other signed-in account never sees it at all.
+2. **Set `SUPABASE_SERVICE_ROLE_KEY`** too — in Supabase, Settings → API → reveal and copy the
+   `service_role` key. Unlike every other key this app uses, this one bypasses row-level
+   security entirely, which is what lets the admin view see every account's rows instead of
+   just the signed-in one's. **Never** put it in a `VITE_`-prefixed variable — that would ship
+   it straight into the browser bundle for anyone to read. It's only read by
+   [`api/admin-stats.js`](./api/admin-stats.js), a server-side function, and only once deployed
+   (no Vercel function exists under `vite dev`, same as card art caching above).
+3. Redeploy so the new env vars take effect. Sign in as the admin account and the tab appears.
+
+The server independently re-checks the caller's email against `VITE_ADMIN_EMAIL` on every
+request using their real session token — the hidden tab is just so other users don't see it
+exists, not what actually keeps the data private.
+
 ### Working around the pokemontcg.io API
 
 The API is functional but unreliable, and `src/lib/pokemonTcgApi.js` compensates for three

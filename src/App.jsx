@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, Boxes, MapPin, ListChecks, Pencil, Check, X, LogOut } from "lucide-react";
+import { Archive, Boxes, MapPin, ListChecks, ShieldCheck, Pencil, Check, X, LogOut } from "lucide-react";
 import { uid, norm } from "./lib/constants";
 import { loadSetMeta } from "./lib/pokemonTcgApi";
 import * as db from "./lib/db";
@@ -9,7 +9,14 @@ import { StorageView } from "./views/StorageView";
 import { CollectionView } from "./views/CollectionView";
 import { LocateView } from "./views/LocateView";
 import { ListBuilderView } from "./views/ListBuilderView";
+import { AdminView } from "./views/AdminView";
 import "./styles/app.css";
+
+// Only this account ever sees the admin tab. api/admin-stats.js independently
+// checks the same email server-side against the session's real token, so this
+// client-side check is purely to keep the tab out of everyone else's UI, not
+// what actually protects the data behind it.
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 // Every basic energy type, seeded once per new account. No set/number, which is
 // what marks them as ordinary unlimited energy rather than a tracked print.
@@ -53,6 +60,7 @@ export default function App() {
 }
 
 function Binder({ session }) {
+  const isAdmin = Boolean(ADMIN_EMAIL) && session.user.email === ADMIN_EMAIL;
   const [collection, setCollection] = useState([]);
   const [storages, setStorages] = useState([]);
   const [ready, setReady] = useState(false);
@@ -524,6 +532,11 @@ function Binder({ session }) {
         <button className={`binder-tab ${tab === "listbuilder" ? "active" : ""}`} onClick={() => setTab("listbuilder")}>
           <ListChecks size={18} /> List Builder
         </button>
+        {isAdmin && (
+          <button className={`binder-tab ${tab === "admin" ? "active" : ""}`} onClick={() => setTab("admin")}>
+            <ShieldCheck size={18} /> Admin
+          </button>
+        )}
       </div>
 
       {loadErr && (
@@ -592,6 +605,8 @@ function Binder({ session }) {
       {tab === "listbuilder" && (
         <ListBuilderView collection={collection} storages={storages} setMeta={setMeta} buildDeckFromPlan={buildDeckFromPlan} />
       )}
+
+      {tab === "admin" && isAdmin && <AdminView />}
     </div>
   );
 }

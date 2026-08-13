@@ -20,7 +20,11 @@ export function SignIn() {
     });
     if (error) {
       setStatus("error");
-      setMessage(error.message);
+      setMessage(
+        /rate limit/i.test(error.message)
+          ? "Too many sign-in attempts right now — please wait a few minutes and try again."
+          : error.message
+      );
     } else {
       setStatus("sent");
       setMessage(address);
